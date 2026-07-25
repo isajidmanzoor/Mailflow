@@ -1,0 +1,11 @@
+{
+  "name": "mailflow-qa-automation",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test:qa": "playwright test"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.54.0"
+  }
+}
