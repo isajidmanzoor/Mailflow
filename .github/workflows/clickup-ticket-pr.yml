@@ -1,0 +1,59 @@
+name: Create PR for ClickUp Ticket
+
+on:
+  workflow_dispatch:
+    inputs:
+      clickup_task_id:
+        description: ClickUp task ID
+        required: true
+        type: string
+      base_branch:
+        description: Branch to create the ticket branch from
+        required: false
+        default: main
+        type: string
+      draft:
+        description: Create the PR as a draft
+        required: false
+        default: true
+        type: boolean
+
+permissions:
+  contents: write
+  pull-requests: write
+
+concurrency:
+  group: clickup-ticket-${{ inputs.clickup_task_id }}
+  cancel-in-progress: false
+
+jobs:
+  create-ticket-pr:
+    name: Create ticket branch and PR
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout base branch
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.base_branch }}
+          fetch-depth: 0
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Verify ClickUp credentials
+        env:
+          CLICKUP_TOKEN: ${{ secrets.CLICKUP_TOKEN }}
+        run: node scripts/clickup-verify.mjs
+
+      - name: Create or update ticket PR
+        env:
+          GH_TOKEN: ${{ github.token }}
+          CLICKUP_TOKEN: ${{ secrets.CLICKUP_TOKEN }}
+          CLICKUP_TASK_ID: ${{ inputs.clickup_task_id }}
+          BASE_BRANCH: ${{ inputs.base_branch }}
+          DRAFT_PR: ${{ inputs.draft }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+          GITHUB_RUN_URL: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: node scripts/clickup-ticket.mjs create-pr

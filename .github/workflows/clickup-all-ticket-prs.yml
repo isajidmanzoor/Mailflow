@@ -1,0 +1,53 @@
+name: Sync ClickUp Tickets to Draft PRs
+
+on:
+  schedule:
+    - cron: "17 * * * *"
+  workflow_dispatch:
+    inputs:
+      base_branch:
+        description: Base branch for generated ticket branches
+        required: false
+        default: main
+        type: string
+      max_tickets:
+        description: Maximum open ClickUp tickets to queue (1-100)
+        required: false
+        default: "100"
+        type: string
+
+permissions:
+  actions: write
+  contents: read
+
+concurrency:
+  group: clickup-ticket-sync
+  cancel-in-progress: false
+
+jobs:
+  queue-ticket-prs:
+    name: Queue draft PRs for open ClickUp tickets
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Verify ClickUp credentials
+        env:
+          CLICKUP_TOKEN: ${{ secrets.CLICKUP_TOKEN }}
+        run: node scripts/clickup-verify.mjs
+
+      - name: Queue one PR workflow per open ticket
+        env:
+          CLICKUP_TOKEN: ${{ secrets.CLICKUP_TOKEN }}
+          CLICKUP_LIST_ID: ${{ vars.CLICKUP_LIST_ID }}
+          GH_TOKEN: ${{ github.token }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+          BASE_BRANCH: ${{ inputs.base_branch || vars.CLICKUP_BASE_BRANCH || 'main' }}
+          MAX_TICKETS: ${{ inputs.max_tickets || vars.CLICKUP_MAX_TICKETS || '100' }}
+        run: node scripts/clickup-dispatch-tickets.mjs
